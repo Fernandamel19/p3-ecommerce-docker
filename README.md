@@ -3,26 +3,61 @@
 Este é o e-commerce do Projeto 2 já resolvido, com InversifyJS e os modos `dev` e `test`. Ele é o ponto de partida deste trabalho. Se você fez o Projeto 2, pode usar o seu código.
 
 ## Como rodar
+É preciso ter o Docker Desktop instalado e aberto.
 
 ```bash
-npm install
 cp .env.example .env
-npm run prisma:migrate
-npm run prisma:seed
-npm run dev
+docker compose up --build
 ```
 
-A API sobe em `http://localhost:3000`. Teste com:
+O `docker compose up --build` sobe dois containers:
+
+* `banco`: o PostgreSQL. Ele não publica porta: só a `api` acessa, pela rede interna do Docker.
+* `api`: o projeto. Ela só sobe depois que o banco está pronto (`healthcheck` + `depends_on`). Ao subir, o `npm start` cria as tabelas (`prisma db push`), cadastra os produtos e liga o servidor.
+
+A API fica em `http://localhost:3000`.
+
+### Testar
+
+Criar um pedido:
 
 ```bash
-curl -X POST http://localhost:3000/orders \
--H "Content-Type: application/json" \
--d '{
-  "customer": "cliente@ethereal.email",
-  "items": [{ "productId": 1, "quantity": 1 }],
-  "paymentMethod": "pix"
-}'
+curl -X POST http://localhost:3000/orders -H "Content-Type: application/json" -d '{"customer":"cliente@ethereal.email","items":[{"productId":1,"quantity":1}],"paymentMethod":"pix"}'
 ```
+
+Buscar o pedido pelo id (troque o `1` pelo `orderId` que voltou):
+
+```bash
+curl -i http://localhost:3000/orders/1
+```
+Um id que não existe vai devolver 404;
+
+```bash
+curl -i http://localhost:3000/orders/999
+```
+
+### Os dois modos
+
+O modo é escolhido pela variável `APP_ENV`, no arquivo `.env`:
+
+* `APP_ENV=dev`: os pedidos vão para o PostgreSQL e o e-mail é enviado pelo Ethereal.
+* `APP_ENV=test`: os pedidos ficam na memória e o e-mail só aparece no terminal. Funciona sem internet.
+
+Para trocar de modo, mude o `APP_ENV` no `.env` e suba de novo:
+
+```bash
+docker compose down
+docker compose up --build
+```
+
+### Desligar
+
+```bash
+docker compose down
+
+```
+
+Os pedidos ficam guardados no volume `dados-banco`: depois de um `docker compose down` e um novo `up`, eles continuam lá. Para apagar os dados também, use `docker compose down -v`.
 
 ## Estrutura
 
